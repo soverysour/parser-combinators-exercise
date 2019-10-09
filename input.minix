@@ -1,0 +1,33 @@
+let
+  x: Int = y
+  y: String = "abcd"
+  z: (Int, (String, Int)) = (2, ("ABCD", -2))
+in
+  read alfa
+  do
+    write x
+    write y
+    write z
+  ;
+  loop read x while 3
+  read ceva
+
+let
+  x: Int = y
+  y: String = "abcd"
+  z: (Int, (String, Int)) = (2, ("ABCD", -2))
+in
+  read alfa
+  do
+    write x
+    write y
+    write z
+  ;
+
+  loop read x while 3
+  read ceva
+
+  if 2 then
+    read x
+  else
+    read y
