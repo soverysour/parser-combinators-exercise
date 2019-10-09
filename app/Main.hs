@@ -2,7 +2,7 @@ module Main where
 
 import           Control.Applicative
 import           Text.Pretty.Simple (pPrint)
-import qualified Data.HashMap.Lazy as HM
+import qualified HashMap as HM
 
 import           Parser
 
@@ -50,12 +50,12 @@ newtype TokenStr = TokenStr
 data Literal
   = LInt TokenInt
   | LStr TokenStr
-  deriving (Show)
+  deriving (Show, Eq)
 
 -- A symbol table is composed of a hashmap for identifiers
 -- and one for literals.
 data SymbolTable
-  = SymbolTable (HM.HashMap String TokenIdent) (HM.HashMap String Literal)
+  = SymbolTable (HM.HashMap TokenIdent) (HM.HashMap Literal)
   deriving (Show)
 
 -- We need semigroup and monoid for symbol table because of the requiremenets for
@@ -70,13 +70,11 @@ instance Monoid SymbolTable where
 -- Various helpers, extractors, symbol table update functions.
 addIdent :: TokenIdent -> SymbolTable -> SymbolTable
 addIdent token (SymbolTable idents lits) =
-  SymbolTable (HM.insert (unIdent token) token idents) lits
+  SymbolTable (HM.insert token idents) lits
 
 addLit :: Literal -> SymbolTable -> SymbolTable
 addLit token (SymbolTable idents lits) =
-  SymbolTable idents (HM.insert (unLit token) token lits)
-  where unLit (LInt i) = show (unInt i)
-        unLit (LStr s) = unStr s
+  SymbolTable idents (HM.insert token lits)
 
 toIdent :: Token -> Maybe String
 toIdent (Identifier i) = Just (unIdent i)

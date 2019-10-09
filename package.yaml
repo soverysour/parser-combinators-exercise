@@ -10,6 +10,9 @@ dependencies:
 - base >= 4.7 && < 5
 - pretty-simple
 - unordered-containers
+- containers
+- vector
+- hashable
 
 library:
   source-dirs: src
