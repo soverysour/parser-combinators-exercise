@@ -1,3 +1,14 @@
+### Specification
+
+#### Alphabet
+
+- Upper and lowecase 'a' - 'z' letters of the English alphabet.
+- Digits (0 - 9)
+- Underline character '_'
+- Punctuation symbols ( ) ; : " =
+
+#### Lexical rules
+
 ```lexer
 identifier = <ident-start><ident-body>*
 ident-start = a | ... | z | A | ... | Z | _
@@ -10,6 +21,8 @@ digit = 0 | <non-zero-digit>
 string-lit = " ^(") "
 punctuation = { | \( | \) | } | ; | :
 ```
+
+#### Syntactic rules
 
 ```parser
 program = <stmt>+
@@ -49,24 +62,22 @@ compound-assign-val = \( <assign-val>, <assign-val> \)
  Identifier    |  0
  LitInt        |  1
  LitStr        |  2
- BracketOpen   |  3
- BracketClose  |  4
- ParenOpen     |  5
- ParenClose    |  6
- Semicolon     |  7
- Colon         |  8
- Comma         |  9
- Equal         | 10
- KwLet         | 11
- KwIn          | 12
- KwIf          | 13
- KwThen        | 14
- KwElse        | 15
- KwRead        | 16
- KwWrite       | 17
- KwLoop        | 18
- KwWhile       | 19
- KwDo          | 20
- KwIntT        | 21
- KwStrT        | 22
+ ParenOpen     |  3
+ ParenClose    |  4
+ Semicolon     |  5
+ Colon         |  6
+ Comma         |  7
+ Equal         |  8
+ KwLet         |  9
+ KwIn          | 10
+ KwIf          | 11
+ KwThen        | 12
+ KwElse        | 13
+ KwRead        | 14
+ KwWrite       | 15
+ KwLoop        | 16
+ KwWhile       | 17
+ KwDo          | 18
+ KwIntT        | 19
+ KwStrT        | 20
 ```

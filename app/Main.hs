@@ -11,8 +11,6 @@ data Token
   = Identifier TokenIdent
   | LitInt TokenInt
   | LitStr TokenStr
-  | BracketOpen
-  | BracketClose
   | ParenOpen
   | ParenClose
   | Semicolon
@@ -150,9 +148,7 @@ lexer = mainParser <* wsParser <* parseEof
       updateState (addLit $ LStr token') $ return $ LitStr token'
     symbolParser =
       tokenTransform
-        [ (BracketOpen, '{')
-        , (BracketClose, '}')
-        , (ParenOpen, '(')
+        [ (ParenOpen, '(')
         , (ParenClose, ')')
         , (Semicolon, ';')
         , (Colon, ':')

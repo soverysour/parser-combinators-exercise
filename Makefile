@@ -11,8 +11,11 @@ ghcid:
 run:
 	-@stack run lexer-and-parser-exe
 
+build:
+	-@stack build
+
 clean:
 	-@stack clean
 	-@clear
 
-.PHONY: default run clean ghcid ghcid-exe
+.PHONY: default run clean ghcid ghcid-exe build
