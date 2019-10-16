@@ -11,36 +11,36 @@
 
 ```lexer
 identifier = <ident-start><ident-body>*
-ident-start = a | ... | z | A | ... | Z | _
+ident-start = "a" | ... | "z" | "A" | ... | "Z" | "_"
 ident-body = <ident-start> | <digit>
 
-int-lit = 0 | (+|-)? <non-zero-digit> <digit>*
-non-zero-digit = 1 | ... | 9
-digit = 0 | <non-zero-digit>
+int-lit = "0" | ("+"|"-")? <non-zero-digit> {<digit>}
+non-zero-digit = "1" | ... | "9"
+digit = "0" | <non-zero-digit>
 
-string-lit = " ^(") "
-punctuation = { | \( | \) | } | ; | :
+string-lit = \" ^(") \"
+punctuation = "{" | "(" | ")" | "}" | ";" | ":"
 ```
 
 #### Syntactic rules
 
 ```parser
-program = <stmt>+
+program = <stmt> {<stmt>}
 
-stmt = let (<decl>;)* <decl> in <stmt>
-     | if <assign-val> then <stmt> else <stmt>
-     | read <identifier>
-     | write <stmt>
-     | loop <stmt> while <assign-val>
-     | do <stmt>+
+stmt = "let" {<decl>;} <decl> "in" <stmt>
+     | "if" <assign-val> "then" <stmt> "else" <stmt>
+     | "read" <identifier>
+     | "write" <stmt>
+     | "loop" <stmt> "while" <assign-val>
+     | "do" <stmt> {<stmt>}
 
-decl = <identifier> : <ident-type> \= <assign-val>
+decl = <identifier> ":" <ident-type> "=" <assign-val>
 
 assign-val  = <literal> | <identifier> | <compound-assig-val>
-assign-type = String | Int | <compount-type>
+assign-type = "String" | "Int" | <compount-type>
 
-compount-type = \( <assign-type>, <assign-type> \)
-compound-assign-val = \( <assign-val>, <assign-val> \)
+compount-type = "(" <assign-type> "," <assign-type> ")"
+compound-assign-val = "(" <assign-val> "," <assign-val> ")"
 ```
 
 ```keywords
