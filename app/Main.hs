@@ -1,8 +1,8 @@
 module Main where
 
 import           Control.Applicative
-import           Text.Pretty.Simple (pPrint)
-import qualified HashMap as HM
+import qualified HashMap             as HM
+import           Text.Pretty.Simple  (pPrint)
 
 import           Parser
 
@@ -16,6 +16,10 @@ data Token
   | Semicolon
   | Colon
   | Comma
+  | Add
+  | Sub
+  | Mul
+  | Div
   | Equal
   | KwLet
   | KwIn
@@ -154,6 +158,10 @@ lexer = mainParser <* wsParser <* parseEof
         , (Colon, ':')
         , (Equal, '=')
         , (Comma, ',')
+        , (Add, '+')
+        , (Sub, '-')
+        , (Mul, '*')
+        , (Div, '/')
         ]
     kwParser =
       tokenTransformSeq
@@ -179,19 +187,25 @@ data MinixProgram
 -- A minix proposition is a let | if | read | write | loop | do statement.
 data MinixProp
   = LetStmt [MinixDecl] [MinixProp]
-  | IfStmt MinixVal MinixProp MinixProp
+  | IfStmt MinixExpr MinixProp MinixProp
   | ReadStmt MinixIdentifier
-  | WriteStmt MinixVal
-  | LoopStmt MinixProp MinixVal
+  | WriteStmt MinixExpr
+  | LoopStmt MinixProp MinixExpr
   | DoStmt [MinixProp]
   deriving (Show)
 
--- A minix literal value can be an integer, string, identifier, or a tuple2.
-data MinixVal
+-- A minix literal value can be an integer, string, identifier, a tuple2,
+-- or some operation of the above.
+data MinixExpr
   = MinixInt Int
   | MinixStr String
   | MinixIdent MinixIdentifier
-  | MinixCompound MinixVal MinixVal
+  | MinixCompound MinixExpr MinixExpr
+  | MinixAdd MinixExpr MinixExpr
+  | MinixSub MinixExpr MinixExpr
+  | MinixMul MinixExpr MinixExpr
+  | MinixDiv MinixExpr MinixExpr
+  | MinixTerm MinixExpr
   deriving (Show)
 
 -- Newtyped identifier.
@@ -208,7 +222,7 @@ data MinixType
 
 -- A minix declaration contains an identifier, its type and initialization value.
 data MinixDecl
-  = MinixDecl MinixIdentifier MinixType MinixVal
+  = MinixDecl MinixIdentifier MinixType MinixExpr
   deriving (Show)
 
 parser :: Parser Token SymbolTable MinixProgram
@@ -220,25 +234,29 @@ parser = program <* parseEof
       LetStmt <$> (parseOne KwLet *> many declExpr) <*>
       (parseOne KwIn *> many stmt)
     ifStmt =
-      IfStmt <$> (parseOne KwIf *> minixVal) <*> (parseOne KwThen *> stmt) <*>
+      IfStmt <$> (parseOne KwIf *> minixExpr) <*> (parseOne KwThen *> stmt) <*>
       (parseOne KwElse *> stmt)
     readStmt = ReadStmt <$> (parseOne KwRead *> minixIdent)
-    writeStmt = WriteStmt <$> (parseOne KwWrite *> minixVal)
+    writeStmt = WriteStmt <$> (parseOne KwWrite *> minixExpr)
     loopStmt =
-      LoopStmt <$> (parseOne KwLoop *> stmt) <*> (parseOne KwWhile *> minixVal)
+      LoopStmt <$> (parseOne KwLoop *> stmt) <*> (parseOne KwWhile *> minixExpr)
     doStmt = DoStmt <$> (parseOne KwDo *> some stmt <* parseOne Semicolon)
     declExpr =
       MinixDecl <$> (minixIdent <* parseOne Colon) <*>
       (minixType <* parseOne Equal) <*>
-      minixVal
-    minixVal =
-      MinixIdent <$> minixIdent <|> MinixInt <$> parseOptional toLitInt <|>
-      MinixStr <$> parseOptional toLitStr <|>
-      minixCompoundVal
+      minixExpr
+    minixExpr = minixAdd <|> minixSub <|> minixTerm
+    minixTerm = minixMul <|> minixDiv <|> MinixTerm <$> minixFactor
+    minixFactor = parseOne ParenOpen *> minixExpr <* parseOne ParenClose
+                  <|> MinixIdent <$> minixIdent
+                  <|> MinixStr <$> parseOptional toLitStr
+                  <|> MinixInt <$> parseOptional toLitInt
+                  <|> MinixCompound <$> (parseOne ParenOpen *> minixExpr <* parseOne Comma) <*> (minixExpr <* parseOne ParenClose)
+    minixAdd = MinixAdd <$> (minixTerm <* parseOne Add) <*> minixExpr
+    minixSub = MinixSub <$> (minixTerm <* parseOne Sub) <*> minixExpr
+    minixMul = MinixMul <$> (minixFactor <* parseOne Mul) <*> minixExpr
+    minixDiv = MinixDiv <$> (minixFactor <* parseOne Div) <*> minixExpr
     minixIdent = MinixIdentifier <$> parseOptional toIdent
-    minixCompoundVal =
-      MinixCompound <$> (parseOne ParenOpen *> minixVal <* parseOne Comma) <*>
-      (minixVal <* parseOne ParenClose)
     minixType =
       MinixIntT <$ parseOptional toIntT <|> MinixStrT <$ parseOptional toStrT <|>
       minixCompoundType

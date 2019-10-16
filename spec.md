@@ -5,21 +5,21 @@
 - Upper and lowecase 'a' - 'z' letters of the English alphabet.
 - Digits (0 - 9)
 - Underline character '_'
-- Punctuation symbols ( ) ; : " =
+- Punctuation symbols ( ) ; : " = + - * /
 
 #### Lexical rules
 
 ```lexer
-identifier = <ident-start><ident-body>*
+identifier = <ident-start> {<ident-body>}
 ident-start = "a" | ... | "z" | "A" | ... | "Z" | "_"
 ident-body = <ident-start> | <digit>
 
-int-lit = "0" | ("+"|"-")? <non-zero-digit> {<digit>}
+int-lit = "0" | [("+"|"-")] <non-zero-digit> {<digit>}
 non-zero-digit = "1" | ... | "9"
 digit = "0" | <non-zero-digit>
 
 string-lit = \" ^(") \"
-punctuation = "{" | "(" | ")" | "}" | ";" | ":"
+punctuation = "{" | "(" | ")" | "}" | ";" | ":" | "+" | "-" | "*" | "/"
 ```
 
 #### Syntactic rules
@@ -32,13 +32,26 @@ stmt = "let" {<decl>;} <decl> "in" <stmt>
      | "read" <identifier>
      | "write" <stmt>
      | "loop" <stmt> "while" <assign-val>
-     | "do" <stmt> {<stmt>}
+     | "do" <stmt> {<stmt>} ";"
 
-decl = <identifier> ":" <ident-type> "=" <assign-val>
+decl = <identifier> ":" <assign-type> "=" <assign-val>
 
-assign-val  = <literal> | <identifier> | <compound-assig-val>
+assign-val  = <expr> | <compound-assig-val>
 assign-type = "String" | "Int" | <compount-type>
 
+expr = <term> "+" <expr>
+     | <term> "-" <expr>
+     | <term>
+     
+term = <factor> "*" <expr>
+     | <factor> "/" <expr>
+     | <factor>
+     
+factor = "(" <expr> ")"
+       | <identifier>
+       | <int-lit>
+       | <string-lit>
+       
 compount-type = "(" <assign-type> "," <assign-type> ")"
 compound-assign-val = "(" <assign-val> "," <assign-val> ")"
 ```
@@ -54,30 +67,35 @@ compound-assign-val = "(" <assign-val> "," <assign-val> ")"
 - loop
 - while
 - do
+- String
+- Int
 ```
 
 ```
     Token codes
 -------------------
  Identifier    |  0
- LitInt        |  1
- LitStr        |  2
- ParenOpen     |  3
- ParenClose    |  4
- Semicolon     |  5
- Colon         |  6
- Comma         |  7
- Equal         |  8
- KwLet         |  9
- KwIn          | 10
- KwIf          | 11
- KwThen        | 12
- KwElse        | 13
- KwRead        | 14
- KwWrite       | 15
- KwLoop        | 16
- KwWhile       | 17
- KwDo          | 18
- KwIntT        | 19
- KwStrT        | 20
+ constant      |  1
+ (             |  2
+ )             |  3
+ ;             |  4
+ :             |  5
+ ,             |  6
+ =             |  7
+ +             |  8
+ -             |  9
+ *             | 10
+ /             | 11
+ let           | 12
+ in            | 13
+ if            | 14
+ then          | 15
+ else          | 16
+ read          | 17
+ write         | 18
+ loop          | 19
+ while         | 20
+ do            | 21
+ Int           | 22
+ String        | 23
 ```

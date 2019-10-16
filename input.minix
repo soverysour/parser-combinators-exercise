@@ -31,3 +31,4 @@ in
     read x
   else
     read y
+  write 2 + 3 * (5 - 4 * alfa) / beta - gamma * ( 2 + ( 3 + ( 4 ) ) )
