@@ -102,18 +102,18 @@ singleton :: a -> [a]
 singleton x = [x]
 
 -- Given a list of pairs (token, string), return a parser that
--- parser any one of that strings not followed by an alphanum_ character and
+-- parses any one of that strings not followed by an alphanum_ character and
 -- returns the associated token as parsing result.
 tokenTransformSeq :: [(Token, String)] -> Parser Char SymbolTable Token
 tokenTransformSeq = foldr (<|>) empty . fmap transform
   where
-    transform (token, str) = token <$ traverseP str <* parseFail identCont
-    identCont =
-      parseRange '0' '9' <|> parseRange 'a' 'z' <|> parseRange 'A' 'Z' <|>
-      parseOne '_'
+    transform (token, str) = token <$ traverseP str <* failingParser
+
+failingParser :: Parser Char SymbolTable ()
+failingParser = parseFail $ parseRange '0' '9' <|> parseRange 'a' 'z' <|> parseRange 'A' 'Z' <|> parseOne '_'
 
 -- Given a list of pairs (token, character), return a parser that
--- parser any one of that character and returns the associated token as parsing result.
+-- parses any one of that character and returns the associated token as parsing result.
 tokenTransform :: [(Token, Char)] -> Parser Char SymbolTable Token
 tokenTransform = foldr (<|>) empty . fmap transform
   where
@@ -135,6 +135,7 @@ lexer = mainParser <* wsParser <* parseEof
       body <- many $ startParser <|> digitParser
       if length body + 1 <= 250
         then do
+          failingParser
           let token = TokenIdent $ start : body
           updateState (addIdent token) $ return $ Identifier token
         else empty
@@ -146,9 +147,11 @@ lexer = mainParser <* wsParser <* parseEof
           token = TokenInt . read <$> (zeroParser <|> negParser <|> posParser <|> unsignedParser)
       in do
         token' <- token
+        failingParser
         updateState (addLit $ LInt token') $ return $ LitInt token'
     strParser = do
       token' <- TokenStr <$> (parseOne '"' *> parseWhileNe '"' <* parseOne '"')
+      failingParser
       updateState (addLit $ LStr token') $ return $ LitStr token'
     symbolParser =
       tokenTransform
@@ -272,7 +275,7 @@ frontend = lexer >$> parser
 main :: IO ()
 main = do
   programText <- readFile "input.minix"
-  case runParser frontend programText mempty of
+  case runParser lexer programText mempty of
     Left err           -> pPrint err
     Right (s, program) -> do
       putStrLn ""
