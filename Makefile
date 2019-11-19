@@ -9,7 +9,7 @@ ghcid:
 	-@ghcid
 
 run:
-	-@stack run lexer-and-parser-exe
+	-@stack run app-hw-exe
 
 build:
 	-@stack build

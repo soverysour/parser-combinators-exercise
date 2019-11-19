@@ -36,17 +36,23 @@ data Token
   deriving (Eq, Show, Ord)
 
 -- Various newtypes.
-newtype TokenIdent = TokenIdent
-  { unIdent :: String
-  } deriving (Eq, Show, Ord)
+newtype TokenIdent =
+  TokenIdent
+    { unIdent :: String
+    }
+  deriving (Eq, Show, Ord)
 
-newtype TokenInt = TokenInt
-  { unInt :: Int
-  } deriving (Eq, Show, Ord)
+newtype TokenInt =
+  TokenInt
+    { unInt :: Int
+    }
+  deriving (Eq, Show, Ord)
 
-newtype TokenStr = TokenStr
-  { unStr :: String
-  } deriving (Eq, Show, Ord)
+newtype TokenStr =
+  TokenStr
+    { unStr :: String
+    }
+  deriving (Eq, Show, Ord)
 
 -- A token literal.
 data Literal
@@ -56,8 +62,8 @@ data Literal
 
 -- A symbol table is composed of a hashmap for identifiers
 -- and one for literals.
-data SymbolTable
-  = SymbolTable (HM.HashMap TokenIdent) (HM.HashMap Literal)
+data SymbolTable =
+  SymbolTable (HM.HashMap TokenIdent) (HM.HashMap Literal)
   deriving (Show)
 
 -- We need semigroup and monoid for symbol table because of the requiremenets for
@@ -110,7 +116,10 @@ tokenTransformSeq = foldr (<|>) empty . fmap transform
     transform (token, str) = token <$ traverseP str <* failingParser
 
 failingParser :: Parser Char SymbolTable ()
-failingParser = parseFail $ parseRange '0' '9' <|> parseRange 'a' 'z' <|> parseRange 'A' 'Z' <|> parseOne '_'
+failingParser =
+  parseFail $
+  parseRange '0' '9' <|> parseRange 'a' 'z' <|> parseRange 'A' 'Z' <|>
+  parseOne '_'
 
 -- Given a list of pairs (token, character), return a parser that
 -- parses any one of that character and returns the associated token as parsing result.
@@ -142,13 +151,15 @@ lexer = mainParser <* wsParser <* parseEof
     intParser =
       let negParser = (singleton <$> parseOne '-') <> unsignedParser
           posParser = parseOne '+' *> unsignedParser
-          unsignedParser = (singleton <$> parseRange '1' '9') <> many (parseRange '0' '9')
+          unsignedParser =
+            (singleton <$> parseRange '1' '9') <> many (parseRange '0' '9')
           zeroParser = singleton <$> parseOne '0'
-          token = TokenInt . read <$> (zeroParser <|> negParser <|> posParser <|> unsignedParser)
-      in do
-        token' <- token
-        failingParser
-        updateState (addLit $ LInt token') $ return $ LitInt token'
+          token =
+            TokenInt . read <$>
+            (zeroParser <|> negParser <|> posParser <|> unsignedParser)
+       in do token' <- token
+             failingParser
+             updateState (addLit $ LInt token') $ return $ LitInt token'
     strParser = do
       token' <- TokenStr <$> (parseOne '"' *> parseWhileNe '"' <* parseOne '"')
       failingParser
@@ -183,8 +194,8 @@ lexer = mainParser <* wsParser <* parseEof
         ]
 
 -- A minix program is a list of minix propositions.
-data MinixProgram
-  = MinixProgram [MinixProp]
+data MinixProgram =
+  MinixProgram [MinixProp]
   deriving (Show)
 
 -- A minix proposition is a let | if | read | write | loop | do statement.
@@ -212,8 +223,8 @@ data MinixExpr
   deriving (Show)
 
 -- Newtyped identifier.
-data MinixIdentifier
-  = MinixIdentifier String
+data MinixIdentifier =
+  MinixIdentifier String
   deriving (Show)
 
 -- A minix type is an int, string, or tuple2 type.
@@ -224,8 +235,8 @@ data MinixType
   deriving (Show)
 
 -- A minix declaration contains an identifier, its type and initialization value.
-data MinixDecl
-  = MinixDecl MinixIdentifier MinixType MinixExpr
+data MinixDecl =
+  MinixDecl MinixIdentifier MinixType MinixExpr
   deriving (Show)
 
 parser :: Parser Token SymbolTable MinixProgram
@@ -250,11 +261,13 @@ parser = program <* parseEof
       minixExpr
     minixExpr = minixAdd <|> minixSub <|> minixTerm
     minixTerm = minixMul <|> minixDiv <|> MinixTerm <$> minixFactor
-    minixFactor = parseOne ParenOpen *> minixExpr <* parseOne ParenClose
-                  <|> MinixIdent <$> minixIdent
-                  <|> MinixStr <$> parseOptional toLitStr
-                  <|> MinixInt <$> parseOptional toLitInt
-                  <|> MinixCompound <$> (parseOne ParenOpen *> minixExpr <* parseOne Comma) <*> (minixExpr <* parseOne ParenClose)
+    minixFactor =
+      parseOne ParenOpen *> minixExpr <* parseOne ParenClose <|>
+      MinixIdent <$> minixIdent <|>
+      MinixStr <$> parseOptional toLitStr <|>
+      MinixInt <$> parseOptional toLitInt <|>
+      MinixCompound <$> (parseOne ParenOpen *> minixExpr <* parseOne Comma) <*>
+      (minixExpr <* parseOne ParenClose)
     minixAdd = MinixAdd <$> (minixTerm <* parseOne Add) <*> minixExpr
     minixSub = MinixSub <$> (minixTerm <* parseOne Sub) <*> minixExpr
     minixMul = MinixMul <$> (minixFactor <* parseOne Mul) <*> minixExpr
@@ -276,7 +289,7 @@ main :: IO ()
 main = do
   programText <- readFile "input.minix"
   case runParser lexer programText mempty of
-    Left err           -> pPrint err
+    Left err -> pPrint err
     Right (s, program) -> do
       putStrLn ""
       pPrint s

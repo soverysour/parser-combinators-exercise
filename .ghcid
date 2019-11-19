@@ -1,0 +1,1 @@
+--command stack ghci lexer-plus-parser:exe:app-hw-exe
