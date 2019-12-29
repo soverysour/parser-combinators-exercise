@@ -1,6 +1,9 @@
+{-# LANGUAGE TupleSections #-}
+
 module Main where
 
 import           Control.Applicative
+import           Data.Bifunctor      (bimap)
 import           Data.Foldable       (asum)
 import           Data.List           (intersperse)
 import qualified Data.Map.Strict     as M
@@ -23,6 +26,18 @@ data Token
   | TokBool Bool
   | TokNull
   deriving (Eq, Show, Ord)
+
+newtype JsonStr =
+  JsonStr
+    { unJsonStr :: String
+    }
+  deriving (Eq, Show, Ord)
+
+mkJsonStr :: String -> Maybe JsonStr
+mkJsonStr str =
+  if '"' `elem` str
+    then Nothing
+    else Just $ JsonStr str
 
 {-
   Function taking
@@ -58,9 +73,9 @@ toLitBool _           = Nothing
   Here we describe our json type, an ADT.
 -}
 data Value
-  = JsonObject (M.Map String Value)
+  = JsonObject (M.Map JsonStr Value)
   | JsonArray [Value]
-  | JsonString String
+  | JsonString JsonStr
   | JsonBool Bool
   | JsonNumber Int
   | JsonNull
@@ -79,13 +94,13 @@ build (JsonBool b) =
   if b
     then "true"
     else "false"
-build (JsonString s) = "\"" ++ s ++ "\""
+build (JsonString (JsonStr s)) = "\"" ++ s ++ "\""
 build (JsonArray arr) = "[" ++ middle ++ "]"
   where
     middle = mconcat . intersperse "," $ build <$> arr
 build (JsonObject obj) = "{" ++ middle ++ "}"
   where
-    middle = mconcat . intersperse "," $ transform <$> M.toList obj
+    middle = mconcat . intersperse "," $ (transform . bimap unJsonStr id <$> M.toList obj)
     transform (key, val) = "\"" ++ key ++ "\"" ++ ":" ++ build val
 
 {-
@@ -134,28 +149,13 @@ lexer :: Parser Char () [Token]
 lexer = mainParser <* wsParser <* parseEof
   where
     wsParser = many $ parseOne ' ' <|> parseOne '\n' <|> parseOne '\t'
-    mainParser =
-      many $
-      wsParser *>
-      (parseSymbol <|> parseString <|> parseNumber <|> parseNull <|> parseBool)
+    mainParser = many $ wsParser *> (parseSymbol <|> parseString <|> parseNumber <|> parseNull <|> parseBool)
     parseSymbol =
-      tokenTransform
-        [ (OpenSq, '[')
-        , (CloseSq, ']')
-        , (OpenBr, '{')
-        , (CloseBr, '}')
-        , (Comma, ',')
-        , (Column, ':')
-        ]
-    parseString =
-      TokString <$> (parseOne '"' *> parseWhileNe '"' <* parseOne '"')
-    parseNumber =
-      TokNumber . read <$>
-      (singleton <$> parseRange '1' '9') <> many (parseRange '0' '9')
+      tokenTransform [(OpenSq, '['), (CloseSq, ']'), (OpenBr, '{'), (CloseBr, '}'), (Comma, ','), (Column, ':')]
+    parseString = TokString <$> (parseOne '"' *> parseWhileNe '"' <* parseOne '"')
+    parseNumber = TokNumber . read <$> (singleton <$> parseRange '1' '9') <> many (parseRange '0' '9')
     parseNull = tokenTransformSeq [(TokNull, "null")]
-    parseBool =
-      tokenTransformSeq [(TokBool True, "true")] <|>
-      tokenTransformSeq [(TokBool False, "false")]
+    parseBool = tokenTransformSeq [(TokBool True, "true")] <|> tokenTransformSeq [(TokBool False, "false")]
 
 {-
   A parser is a function taking a sequence of Token values, with an internal state of (),
@@ -164,25 +164,19 @@ lexer = mainParser <* wsParser <* parseEof
 parser :: Parser Token () Value
 parser = value <* parseEof
   where
-    value =
-      jsonBool <|> jsonNull <|> jsonNumber <|> jsonObj <|> jsonArray <|>
-      jsonString
+    value = jsonBool <|> jsonNull <|> jsonNumber <|> jsonObj <|> jsonArray <|> jsonString
     jsonBool = JsonBool <$> parseOptional toLitBool
-    jsonString = JsonString <$> parseOptional toLitStr
+    jsonString = JsonString . JsonStr <$> parseOptional toLitStr
     jsonNumber = JsonNumber <$> parseOptional toLitInt
-    jsonArray =
-      parseOne OpenSq *> (JsonArray <$> commaSep value) <* parseOne CloseSq
+    jsonArray = parseOne OpenSq *> (JsonArray <$> commaSep value) <* parseOne CloseSq
     jsonNull = JsonNull <$ parseOne TokNull
-    jsonObj =
-      parseOne OpenBr *> (JsonObject . M.fromList <$> commaSep kvPair) <*
-      parseOne CloseBr
+    jsonObj = parseOne OpenBr *> (JsonObject . M.fromList <$> commaSep kvPair) <* parseOne CloseBr
     kvPair = do
       label <- parseOptional toLitStr
       parseOne Column
       value' <- value
-      return (label, value')
-    commaSep parser' =
-      (singleton <$> parser') <> many (parseOne Comma *> parser') <|> return []
+      return (JsonStr label, value')
+    commaSep parser' = (singleton <$> parser') <> many (parseOne Comma *> parser') <|> return []
 
 {-
   Our frontend is a parser composed of the lexer sunk into the parser.
@@ -224,7 +218,66 @@ buildToFile file value = writeFile file $ build value
 main :: IO ()
 main = do
   let file = "input.json"
-  value <- jsonFromFile file >>= maybeToIO
+  value <- maybeToIO =<< jsonFromFile file
   pPrint value
   pPrint $ build value
+  pPrint builtValue
+  pPrint invalidValue
   buildToFile file value
+
+{- JSON Builder -}
+
+stringOf :: String -> Maybe JsonStr
+stringOf = mkJsonStr
+
+stringJson :: String -> Maybe Value
+stringJson = fmap JsonString . stringOf
+
+arrayOf :: Applicative a => [a Value] -> a [Value]
+arrayOf = sequenceA
+
+arrayJson :: Applicative a => [a Value] -> a Value
+arrayJson = fmap JsonArray . arrayOf
+
+dictOf :: Applicative a => [a (JsonStr, Value)] -> a [(JsonStr, Value)]
+dictOf = sequenceA
+
+dictJson :: Applicative a => [a (JsonStr, Value)] -> a Value
+dictJson = fmap (JsonObject . M.fromList) . dictOf
+
+infixr 5 .=
+(.=) :: Functor f => f JsonStr -> Value -> f (JsonStr, Value)
+aJsonStr .= value = (, value) <$> aJsonStr
+
+infixr 5 ..=
+(..=) :: Applicative a => JsonStr -> Value -> a (JsonStr, Value)
+jsonStr ..= value = pure jsonStr .= value
+
+boolOf :: Applicative a => Bool -> a Bool
+boolOf = pure
+
+boolJson :: Applicative a => Bool -> a Value
+boolJson = fmap JsonBool . boolOf
+
+numberOf :: Applicative a => Int -> a Int
+numberOf = pure
+
+numberJson :: Applicative a => Int -> a Value
+numberJson = fmap JsonNumber . numberOf
+
+jsonNull :: Applicative a => a Value
+jsonNull = pure JsonNull
+
+builtValue :: Maybe Value
+builtValue = do
+  someBool <- boolJson True
+  etiquette <- stringOf "Hello darkness, my old friend..."
+  let pairing = etiquette ..= someBool
+  arrayJson $ fmap (const (dictJson [pairing])) [1 .. 10]
+
+invalidValue :: Maybe Value
+invalidValue = do
+  someBool <- boolJson True
+  etiquette <- stringOf "Invalid \"..."
+  let pairing = etiquette ..= someBool
+  arrayJson $ fmap (const (dictJson [pairing])) [1 .. 10]

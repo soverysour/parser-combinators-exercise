@@ -1,3 +1,6 @@
 .stack-work/
 lexer-plus-parser.cabal
 *~
+lexer-plus-parser.iml
+.idea/
+out/
